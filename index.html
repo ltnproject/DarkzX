@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DarkComm — Dashboard</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg-primary:#0f0f14;--bg-secondary:#1a1a24;--bg-tertiary:#24243a;
+  --bg-card:#1e1e2e;--bg-hover:#2a2a3e;--bg-input:#16161f;
+  --text-primary:#e2e2f0;--text-secondary:#9898b0;--text-muted:#6a6a82;
+  --accent:#7c5cff;--accent-hover:#6a48e6;--accent-glow:rgba(124,92,255,0.3);
+  --success:#4ade80;--warning:#fbbf24;--danger:#f87171;--info:#60a5fa;
+  --border:#2a2a3e;--border-light:#3a3a52;
+  --radius:12px;--radius-sm:8px;--radius-lg:16px;--radius-full:999px;
+  --shadow:0 4px 24px rgba(0,0,0,0.4);--shadow-lg:0 8px 48px rgba(0,0,0,0.6);
+  --transition:all 0.2s cubic-bezier(0.4,0,0.2,1);
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;
+}
+[data-theme="light"]{
+  --bg-primary:#f5f5fa;--bg-secondary:#ffffff;--bg-tertiary:#eeeef5;
+  --bg-card:#ffffff;--bg-hover:#f0f0f8;--bg-input:#f0f0f5;
+  --text-primary:#1a1a2e;--text-secondary:#555570;--text-muted:#8888a0;
+  --border:#e0e0ea;--border-light:#d0d0dd;
+  --shadow:0 4px 24px rgba(0,0,0,0.08);--shadow-lg:0 8px 48px rgba(0,0,0,0.12);
+}
+html{font-size:16px}
+body{font-family:var(--font);background:var(--bg-primary);color:var(--text-primary);line-height:1.6;min-height:100vh;overflow-x:hidden}
+a{color:var(--accent);text-decoration:none}
+button{cursor:pointer;font-family:var(--font);border:none;outline:none}
+input,textarea,select{font-family:var(--font);outline:none}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--border-light)}
+
+.auth-overlay{position:fixed;inset:0;background:var(--bg-primary);z-index:9999;display:flex;align-items:center;justify-content:center}
+.auth-container{width:100%;max-width:440px;padding:20px}
+.auth-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:40px;box-shadow:var(--shadow-lg)}
+.auth-logo{text-align:center;margin-bottom:32px}
+.auth-logo h1{font-size:28px;font-weight:700;background:linear-gradient(135deg,var(--accent),#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.auth-logo p{color:var(--text-secondary);font-size:14px;margin-top:4px}
+.auth-tabs{display:flex;gap:4px;background:var(--bg-input);border-radius:var(--radius);padding:4px;margin-bottom:24px}
+.auth-tab{flex:1;padding:10px;text-align:center;border-radius:var(--radius-sm);font-size:14px;font-weight:500;color:var(--text-secondary);background:transparent;transition:var(--transition)}
+.auth-tab.active{background:var(--accent);color:#fff}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:13px;font-weight:500;color:var(--text-secondary);margin-bottom:6px}
+.form-group input{width:100%;padding:12px 16px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:14px;transition:var(--transition)}
+.form-group input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+.btn{width:100%;padding:12px;border-radius:var(--radius-sm);font-size:14px;font-weight:600;transition:var(--transition)}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-hover);transform:translateY(-1px);box-shadow:0 4px 16px var(--accent-glow)}
+.btn-google{background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border);margin-top:12px;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-google:hover{background:var(--bg-hover)}
+.divider{display:flex;align-items:center;gap:12px;margin:20px 0;color:var(--text-muted);font-size:13px}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.auth-error{background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);color:var(--danger);padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;margin-bottom:16px;display:none}
+
+.dashboard{display:none;min-height:100vh}
+.top-bar{position:sticky;top:0;z-index:100;background:var(--bg-secondary);border-bottom:1px solid var(--border);padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between;backdrop-filter:blur(20px)}
+.top-bar-left{display:flex;align-items:center;gap:16px}
+.top-bar-left h1{font-size:20px;font-weight:700;background:linear-gradient(135deg,var(--accent),#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.top-bar-right{display:flex;align-items:center;gap:12px}
+.icon-btn{width:40px;height:40px;border-radius:var(--radius);background:transparent;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);transition:var(--transition);border:1px solid transparent;position:relative}
+.icon-btn:hover{background:var(--bg-hover);color:var(--text-primary);border-color:var(--border)}
+.icon-btn svg{width:20px;height:20px}
+.badge{position:absolute;top:4px;right:4px;width:8px;height:8px;background:var(--danger);border-radius:50%;border:2px solid var(--bg-secondary)}
+.user-menu{display:flex;align-items:center;gap:10px;padding:6px 12px 6px 6px;border-radius:var(--radius-full);background:var(--bg-tertiary);cursor:pointer;transition:var(--transition);border:1px solid var(--border)}
+.user-menu:hover{background:var(--bg-hover)}
+.user-avatar{width:32px;height:32px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;color:#fff;overflow:hidden}
+.user-avatar img{width:100%;height:100%;object-fit:cover}
+.user-menu-name{font-size:13px;font-weight:500}
+
+.dropdown{position:absolute;top:calc(100% + 8px);right:0;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:8px;min-width:200px;box-shadow:var(--shadow-lg);display:none;z-index:200}
+.dropdown.show{display:block;animation:dropIn 0.15s ease}
+@keyframes dropIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.dropdown-item{padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;display:flex;align-items:center;gap:10px;color:var(--text-secondary);transition:var(--transition);cursor:pointer}
+.dropdown-item:hover{background:var(--bg-hover);color:var(--text-primary)}
+.dropdown-item.danger{color:var(--danger)}
+.dropdown-divider{height:1px;background:var(--border);margin:4px 0}
+
+.main-content{padding:32px 24px;max-width:1400px;margin:0 auto}
+.welcome-section{margin-bottom:40px}
+.welcome-section h2{font-size:28px;font-weight:700;margin-bottom:8px}
+.welcome-section p{color:var(--text-secondary);font-size:15px}
+
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-bottom:40px}
+.stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;transition:var(--transition)}
+.stat-card:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:var(--accent)}
+.stat-card-icon{width:48px;height:48px;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:22px}
+.stat-card-icon.mail{background:rgba(124,92,255,0.15);color:var(--accent)}
+.stat-card-icon.chat{background:rgba(74,222,128,0.15);color:var(--success)}
+.stat-card-icon.users{background:rgba(96,165,250,0.15);color:var(--info)}
+.stat-card-icon.storage{background:rgba(251,191,36,0.15);color:var(--warning)}
+.stat-card h3{font-size:32px;font-weight:700;margin-bottom:4px}
+.stat-card p{font-size:13px;color:var(--text-secondary)}
+
+.apps-section h3{font-size:18px;font-weight:600;margin-bottom:20px}
+.apps-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px;margin-bottom:40px}
+.app-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);padding:32px;display:flex;flex-direction:column;gap:20px;transition:var(--transition);cursor:pointer;text-decoration:none;color:var(--text-primary)}
+.app-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);border-color:var(--accent)}
+.app-card-header{display:flex;align-items:center;gap:16px}
+.app-icon{width:56px;height:56px;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-size:26px}
+.app-icon.mail-icon{background:linear-gradient(135deg,#7c5cff,#a78bfa);color:#fff}
+.app-icon.chat-icon{background:linear-gradient(135deg,#4ade80,#22d3ee);color:#fff}
+.app-card-header div h4{font-size:18px;font-weight:600}
+.app-card-header div p{font-size:13px;color:var(--text-secondary)}
+.app-card-features{display:flex;flex-wrap:wrap;gap:8px}
+.feature-tag{padding:4px 12px;background:var(--bg-tertiary);border-radius:var(--radius-full);font-size:12px;color:var(--text-secondary)}
+.app-card-action{display:flex;align-items:center;gap:8px;color:var(--accent);font-size:14px;font-weight:500}
+.app-card-action svg{width:16px;height:16px;transition:var(--transition)}
+.app-card:hover .app-card-action svg{transform:translateX(4px)}
+
+.settings-panel{display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);animation:fadeIn 0.2s ease}
+.settings-panel.show{display:flex;align-items:center;justify-content:center}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.settings-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);width:100%;max-width:560px;max-height:80vh;overflow-y:auto;box-shadow:var(--shadow-lg)}
+.settings-header{padding:24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.settings-header h3{font-size:18px;font-weight:600}
+.settings-body{padding:24px}
+.settings-section{margin-bottom:24px}
+.settings-section h4{font-size:14px;font-weight:600;color:var(--text-secondary);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px}
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)}
+.setting-row:last-child{border-bottom:none}
+.setting-info{display:flex;flex-direction:column;gap:2px}
+.setting-info span{font-size:14px;font-weight:500}
+.setting-info small{font-size:12px;color:var(--text-muted)}
+.toggle{position:relative;width:48px;height:26px;background:var(--border);border-radius:13px;cursor:pointer;transition:var(--transition)}
+.toggle.active{background:var(--accent)}
+.toggle::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:var(--transition)}
+.toggle.active::after{transform:translateX(22px)}
+
+.admin-panel{display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px)}
+.admin-panel.show{display:flex;align-items:center;justify-content:center}
+.admin-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg);width:100%;max-width:800px;max-height:85vh;overflow-y:auto;box-shadow:var(--shadow-lg)}
+.admin-header{padding:24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.admin-body{padding:24px}
+.admin-tabs{display:flex;gap:4px;background:var(--bg-input);border-radius:var(--radius);padding:4px;margin-bottom:24px}
+.admin-tabs button{flex:1;padding:10px;text-align:center;border-radius:var(--radius-sm);font-size:13px;font-weight:500;color:var(--text-secondary);background:transparent;transition:var(--transition)}
+.admin-tabs button.active{background:var(--accent);color:#fff}
+.user-list{display:flex;flex-direction:column;gap:8px}
+.user-item{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--bg-secondary);border-radius:var(--radius-sm);border:1px solid var(--border)}
+.user-item-left{display:flex;align-items:center;gap:12px}
+.user-item-avatar{width:36px;height:36px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;color:#fff}
+.user-item-info span{font-size:14px;font-weight:500;display:block}
+.user-item-info small{font-size:12px;color:var(--text-muted)}
+.btn-sm{padding:6px 14px;border-radius:var(--radius-sm);font-size:12px;font-weight:500;transition:var(--transition)}
+.btn-danger{background:rgba(248,113,113,0.15);color:var(--danger);border:1px solid rgba(248,113,113,0.3)}
+.btn-danger:hover{background:rgba(248,113,113,0.25)}
+.btn-success-sm{background:rgba(74,222,128,0.15);color:var(--success);border:1px solid rgba(74,222,128,0.3)}
+
+.profile-edit .form-group input{width:100%;padding:10px 14px;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:14px}
+.profile-edit .avatar-upload{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+.profile-edit .avatar-preview{width:64px;height:64px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:#fff;overflow:hidden}
+.profile-edit .avatar-preview img{width:100%;height:100%;object-fit:cover}
+
+.recent-section{margin-top:40px}
+.recent-section h3{font-size:18px;font-weight:600;margin-bottom:20px}
+.recent-list{display:flex;flex-direction:column;gap:8px}
+.recent-item{display:flex;align-items:center;gap:16px;padding:16px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);transition:var(--transition);cursor:pointer}
+.recent-item:hover{background:var(--bg-hover);border-color:var(--border-light)}
+.recent-icon{width:40px;height:40px;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.recent-icon.email-type{background:rgba(124,92,255,0.15);color:var(--accent)}
+.recent-icon.chat-type{background:rgba(74,222,128,0.15);color:var(--success)}
+.recent-content{flex:1;min-width:0}
+.recent-content h4{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recent-content p{font-size:12px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recent-time{font-size:11px;color:var(--text-muted);flex-shrink:0}
+
+.toast-container{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{padding:14px 20px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);font-size:13px;display:flex;align-items:center;gap:10px;animation:slideInRight 0.3s ease;max-width:360px}
+.toast.success{border-left:3px solid var(--success)}
+.toast.error{border-left:3px solid var(--danger)}
+.toast.info{border-left:3px solid var(--info)}
+@keyframes slideInRight{from{opacity:0;transform:translateX(100px)}to{opacity:1;transform:translateX(0)}}
+
+.loading-spinner{width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.6s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:768px){
+  .main-content{padding:20px 16px}
+  .apps-grid{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+  .welcome-section h2{font-size:22px}
+  .top-bar{padding:0 16px}
+  .settings-card,.admin-card{margin:16px;max-height:90vh}
+}
+@media(max-width:480px){
+  .stats-grid{grid-template-columns:1fr}
+  .user-menu-name{display:none}
+}
+</style>
+</head>
+<body>
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- AUTH OVERLAY -->
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-container">
+    <div class="auth-card">
+      <div class="auth-logo">
+        <h1>⚡ DarkComm</h1>
+        <p>Unified Communication Platform</p>
+      </div>
+      <div class="auth-tabs">
+        <button class="auth-tab active" onclick="switchAuthTab('login')">Sign In</button>
+        <button class="auth-tab" onclick="switchAuthTab('register')">Sign Up</button>
+      </div>
+      <div class="auth-error" id="authError"></div>
+      <!-- Login Form -->
+      <form id="loginForm" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="loginEmail" placeholder="you@darkcomm.io" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="loginPassword" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn btn-primary" id="loginBtn">Sign In</button>
+        <div class="divider">or continue with</div>
+        <button type="button" class="btn btn-google" onclick="handleGoogleLogin()">
+          <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          Google
+        </button>
+      </form>
+      <!-- Register Form -->
+      <form id="registerForm" style="display:none" onsubmit="handleRegister(event)">
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" id="regUsername" placeholder="darkuser" minlength="2" maxlength="30" required>
+        </div>
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="regEmail" placeholder="you@darkcomm.io" required>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="regPassword" placeholder="Min 8 characters" minlength="8" required>
+        </div>
+        <div class="form-group">
+          <label>Confirm Password</label>
+          <input type="password" id="regConfirm" placeholder="••••••••" minlength="8" required>
+        </div>
+        <button type="submit" class="btn btn-primary" id="regBtn">Create Account</button>
+        <div class="divider">or continue with</div>
+        <button type="button" class="btn btn-google" onclick="handleGoogleLogin()">
+          <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          Google
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="dashboard" id="dashboard">
+  <div class="top-bar">
+    <div class="top-bar-left">
+      <h1>⚡ DarkComm</h1>
+    </div>
+    <div class="top-bar-right">
+      <button class="icon-btn" onclick="toggleTheme()" title="Toggle theme">
+        <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <button class="icon-btn" onclick="openSettings()" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      </button>
+      <div style="position:relative">
+        <div class="user-menu" onclick="toggleDropdown()">
+          <div class="user-avatar" id="dashAvatar">?</div>
+          <span class="user-menu-name" id="dashUsername">User</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </div>
+        <div class="dropdown" id="userDropdown">
+          <div class="dropdown-item" onclick="openSettings()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            Settings
+          </div>
+          <div class="dropdown-item" id="adminMenuBtn" style="display:none" onclick="openAdmin()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Admin Panel
+          </div>
+          <div class="dropdown-divider"></div>
+          <div class="dropdown-item danger" onclick="handleLogout()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+            Sign Out
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <div class="welcome-section">
+      <h2 id="welcomeText">Welcome back!</h2>
+      <p>Your unified communication hub — email and messaging in one place.</p>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-card-icon mail">📧</div>
+        <h3 id="statUnread">0</h3>
+        <p>Unread Emails</p>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-icon chat">💬</div>
+        <h3 id="statChats">0</h3>
+        <p>Active Chats</p>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-icon users">👥</div>
+        <h3 id="statContacts">0</h3>
+        <p>Contacts</p>
+      </div>
+      <div class="stat-card">
+        <div class="stat-card-icon storage">📁</div>
+        <h3 id="statStorage">0 MB</h3>
+        <p>Storage Used</p>
+      </div>
+    </div>
+
+    <div class="apps-section">
+      <h3>Applications</h3>
+      <div class="apps-grid">
+        <a href="mail.html" class="app-card">
+          <div class="app-card-header">
+            <div class="app-icon mail-icon">📧</div>
+            <div>
+              <h4>DarkMail</h4>
+              <p>Send and receive internal emails</p>
+            </div>
+          </div>
+          <div class="app-card-features">
+            <span class="feature-tag">Rich Text</span>
+            <span class="feature-tag">Attachments</span>
+            <span class="feature-tag">Folders</span>
+            <span class="feature-tag">Search</span>
+            <span class="feature-tag">Spam Filter</span>
+          </div>
+          <div class="app-card-action">
+            Open Mail
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </div>
+        </a>
+        <a href="chat.html" class="app-card">
+          <div class="app-card-header">
+            <div class="app-icon chat-icon">💬</div>
+            <div>
+              <h4>DarkChat</h4>
+              <p>Real-time messaging with everyone</p>
+            </div>
+          </div>
+          <div class="app-card-features">
+            <span class="feature-tag">Real-time</span>
+            <span class="feature-tag">Groups</span>
+            <span class="feature-tag">Files</span>
+            <span class="feature-tag">Typing Indicator</span>
+            <span class="feature-tag">Read Receipts</span>
+          </div>
+          <div class="app-card-action">
+            Open Chat
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <div class="recent-section">
+      <h3>Recent Activity</h3>
+      <div class="recent-list" id="recentActivity">
+        <div style="text-align:center;padding:40px;color:var(--text-muted)">
+          <div class="loading-spinner"></div>
+          <p style="margin-top:12px">Loading activity...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS PANEL -->
+<div class="settings-panel" id="settingsPanel" onclick="if(event.target===this)closeSettings()">
+  <div class="settings-card">
+    <div class="settings-header">
+      <h3>⚙️ Settings</h3>
+      <button class="icon-btn" onclick="closeSettings()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="settings-body">
+      <div class="settings-section profile-edit">
+        <h4>Profile</h4>
+        <div class="avatar-upload">
+          <div class="avatar-preview" id="settingsAvatar">?</div>
+          <div>
+            <button class="btn-sm" style="background:var(--accent);color:#fff;border-radius:var(--radius-sm);padding:8px 16px" onclick="document.getElementById('avatarInput').click()">Upload Avatar</button>
+            <input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="uploadAvatar(event)">
+            <p style="font-size:11px;color:var(--text-muted);margin-top:4px">Max 5MB, JPG/PNG</p>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Display Name</label>
+          <input type="text" id="settingsDisplayName" placeholder="Your display name">
+        </div>
+        <div class="form-group">
+          <label>Username</label>
+          <input type="text" id="settingsUsername" placeholder="username" disabled style="opacity:0.6">
+        </div>
+        <div class="form-group">
+          <label>Status Message</label>
+          <input type="text" id="settingsStatus" placeholder="What's on your mind?">
+        </div>
+        <button class="btn btn-primary" style="margin-top:8px" onclick="saveProfile()">Save Profile</button>
+      </div>
+      <div class="settings-section">
+        <h4>Appearance</h4>
+        <div class="setting-row">
+          <div class="setting-info">
+            <span>Dark Mode</span>
+            <small>Toggle dark/light theme</small>
+          </div>
+          <div class="toggle" id="themeToggle" onclick="toggleTheme()"></div>
+        </div>
+      </div>
+      <div class="settings-section">
+        <h4>Notifications</h4>
+        <div class="setting-row">
+          <div class="setting-info">
+            <span>Email Notifications</span>
+            <small>Get notified about new emails</small>
+          </div>
+          <div class="toggle active" id="emailNotifToggle" onclick="toggleNotif('email')"></div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <span>Chat Notifications</span>
+            <small>Get notified about new messages</small>
+          </div>
+          <div class="toggle active" id="chatNotifToggle" onclick="toggleNotif('chat')"></div>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info">
+            <span>Sound</span>
+            <small>Play notification sounds</small>
+          </div>
+          <div class="toggle active" id="soundToggle" onclick="toggleNotif('sound')"></div>
+        </div>
+      </div>
+      <div class="settings-section">
+        <h4>Security</h4>
+        <div class="setting-row">
+          <div class="setting-info">
+            <span>Encryption</span>
+            <small>End-to-end encryption for messages</small>
+          </div>
+          <div class="toggle active" id="encryptToggle" onclick="toggleNotif('encrypt')"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div class="admin-panel" id="adminPanel" onclick="if(event.target===this)closeAdmin()">
+  <div class="admin-card">
+    <div class="admin-header">
+      <h3>🛡️ Admin Panel</h3>
+      <button class="icon-btn" onclick="closeAdmin()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="admin-body">
+      <div class="admin-tabs">
+        <button class="active" onclick="switchAdminTab('users',this)">Users</button>
+        <button onclick="switchAdminTab('activity',this)">Activity</button>
+        <button onclick="switchAdminTab('reports',this)">Reports</button>
+      </div>
+      <div id="adminUsersTab">
+        <div class="user-list" id="adminUserList">
+          <div style="text-align:center;padding:20px;color:var(--text-muted)"><div class="loading-spinner"></div></div>
+        </div>
+      </div>
+      <div id="adminActivityTab" style="display:none">
+        <div id="adminActivityList" style="color:var(--text-muted);text-align:center;padding:20px">Loading logs...</div>
+      </div>
+      <div id="adminReportsTab" style="display:none">
+        <div id="adminReportsList" style="color:var(--text-muted);text-align:center;padding:20px">Loading reports...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// FIREBASE CONFIGURATION - REPLACE WITH YOUR VALUES
+// ============================================================
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const storage = firebase.storage();
+
+// ============================================================
+// STATE
+// ============================================================
+let currentUser = null;
+let userData = null;
+let userSettings = { theme: 'dark', emailNotif: true, chatNotif: true, sound: true, encrypt: true };
+
+// ============================================================
+// AUTH
+// ============================================================
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t, i) => {
+    t.classList.toggle('active', (tab === 'login' && i === 0) || (tab === 'register' && i === 1));
+  });
+  document.getElementById('loginForm').style.display = tab === 'login' ? 'block' : 'none';
+  document.getElementById('registerForm').style.display = tab === 'register' ? 'block' : 'none';
+  document.getElementById('authError').style.display = 'none';
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('authError');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const btn = document.getElementById('loginBtn');
+  btn.innerHTML = '<span class="loading-spinner"></span>';
+  btn.disabled = true;
+  try {
+    const email = document.getElementById('loginEmail').value.trim();
+    const pass = document.getElementById('loginPassword').value;
+    await auth.signInWithEmailAndPassword(email, pass);
+  } catch (err) {
+    showAuthError(err.message);
+    btn.innerHTML = 'Sign In';
+    btn.disabled = false;
+  }
+}
+
+async function handleRegister(e) {
+  e.preventDefault();
+  const btn = document.getElementById('regBtn');
+  const username = document.getElementById('regUsername').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const pass = document.getElementById('regPassword').value;
+  const confirm = document.getElementById('regConfirm').value;
+
+  if (pass !== confirm) { showAuthError('Passwords do not match'); return; }
+  if (username.length < 2) { showAuthError('Username must be at least 2 characters'); return; }
+
+  btn.innerHTML = '<span class="loading-spinner"></span>';
+  btn.disabled = true;
+  try {
+    // Check username uniqueness
+    const existing = await db.collection('users').where('username', '==', username.toLowerCase()).get();
+    if (!existing.empty) { showAuthError('Username already taken'); btn.innerHTML = 'Create Account'; btn.disabled = false; return; }
+
+    const cred = await auth.createUserWithEmailAndPassword(email, pass);
+    await cred.user.updateProfile({ displayName: username });
+    await db.collection('users').doc(cred.user.uid).set({
+      username: username.toLowerCase(),
+      displayName: username,
+      email: email.toLowerCase(),
+      avatarUrl: '',
+      status: 'online',
+      statusMessage: '',
+      role: 'user',
+      banned: false,
+      theme: 'dark',
+      notificationsEnabled: true,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    // Set presence
+    await db.collection('presence').doc(cred.user.uid).set({
+      online: true,
+      lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (err) {
+    showAuthError(err.message);
+    btn.innerHTML = 'Create Account';
+    btn.disabled = false;
+  }
+}
+
+async function handleGoogleLogin() {
+  try {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    const result = await auth.signInWithPopup(provider);
+    const user = result.user;
+    const doc = await db.collection('users').doc(user.uid).get();
+    if (!doc.exists) {
+      const username = (user.displayName || user.email.split('@')[0]).toLowerCase().replace(/[^a-z0-9]/g, '');
+      await db.collection('users').doc(user.uid).set({
+        username: username,
+        displayName: user.displayName || username,
+        email: user.email.toLowerCase(),
+        avatarUrl: user.photoURL || '',
+        status: 'online',
+        statusMessage: '',
+        role: 'user',
+        banned: false,
+        theme: 'dark',
+        notificationsEnabled: true,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+    await db.collection('presence').doc(user.uid).set({
+      online: true,
+      lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (err) {
+    showAuthError(err.message);
+  }
+}
+
+async function handleLogout() {
+  if (currentUser) {
+    await db.collection('presence').doc(currentUser.uid).set({
+      online: false,
+      lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await db.collection('users').doc(currentUser.uid).update({
+      status: 'offline',
+      lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+  await auth.signOut();
+}
+
+// ============================================================
+// AUTH STATE LISTENER
+// ============================================================
+auth.onAuthStateChanged(async (user) => {
+  if (user) {
+    currentUser = user;
+    document.getElementById('authOverlay').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+
+    // Load user data
+    const doc = await db.collection('users').doc(user.uid).get();
+    if (doc.exists) {
+      userData = doc.data();
+      // Check if banned
+      if (userData.banned) {
+        showToast('Your account has been banned.', 'error');
+        await auth.signOut();
+        return;
+      }
+      applyUserData();
+      loadStats();
+      loadRecentActivity();
+      // Update presence
+      db.collection('presence').doc(user.uid).set({ online: true, lastSeen: firebase.firestore.FieldValue.serverTimestamp() });
+      db.collection('users').doc(user.uid).update({ status: 'online', lastSeen: firebase.firestore.FieldValue.serverTimestamp() });
+    } else {
+      // If user doc doesn't exist (edge case), create it
+      const username = (user.displayName || user.email.split('@')[0]).toLowerCase().replace(/[^a-z0-9]/g, '');
+      userData = {
+        username, displayName: user.displayName || username, email: user.email,
+        avatarUrl: '', status: 'online', statusMessage: '', role: 'user',
+        banned: false, theme: 'dark', notificationsEnabled: true
+      };
+      await db.collection('users').doc(user.uid).set({
+        ...userData,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      applyUserData();
+    }
+  } else {
+    currentUser = null;
+    userData = null;
+    document.getElementById('authOverlay').style.display = 'flex';
+    document.getElementById('dashboard').style.display = 'none';
+  }
+});
+
+function applyUserData() {
+  if (!userData) return;
+  document.getElementById('dashUsername').textContent = userData.displayName || userData.username;
+  document.getElementById('welcomeText').textContent = `Welcome back, ${userData.displayName || userData.username}!`;
+  
+  const avatarEl = document.getElementById('dashAvatar');
+  const settingsAvatarEl = document.getElementById('settingsAvatar');
+  if (userData.avatarUrl) {
+    avatarEl.innerHTML = `<img src="${userData.avatarUrl}" alt="">`;
+    settingsAvatarEl.innerHTML = `<img src="${userData.avatarUrl}" alt="">`;
+  } else {
+    const initial = (userData.displayName || userData.username || '?')[0].toUpperCase();
+    avatarEl.textContent = initial;
+    settingsAvatarEl.textContent = initial;
+  }
+
+  // Settings
+  document.getElementById('settingsDisplayName').value = userData.displayName || '';
+  document.getElementById('settingsUsername').value = userData.username || '';
+  document.getElementById('settingsStatus').value = userData.statusMessage || '';
+
+  // Theme
+  if (userData.theme) {
+    userSettings.theme = userData.theme;
+    applyTheme(userData.theme);
+  }
+
+  // Admin
+  if (userData.role === 'admin') {
+    document.getElementById('adminMenuBtn').style.display = 'flex';
+  }
+}
+
+// ============================================================
+// THEME
+// ============================================================
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  userSettings.theme = theme;
+  const toggle = document.getElementById('themeToggle');
+  if (toggle) toggle.classList.toggle('active', theme === 'dark');
+  const icon = document.getElementById('themeIcon');
+  if (theme === 'light') {
+    icon.innerHTML = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+  } else {
+    icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+  }
+}
+
+function toggleTheme() {
+  const newTheme = userSettings.theme === 'dark' ? 'light' : 'dark';
+  applyTheme(newTheme);
+  if (currentUser) {
+    db.collection('users').doc(currentUser.uid).update({ theme: newTheme });
+  }
+}
+
+// ============================================================
+// STATS
+// ============================================================
+async function loadStats() {
+  if (!currentUser) return;
+  try {
+    // Unread emails
+    const unread = await db.collection('emails')
+      .where('receiver', '==', currentUser.uid)
+      .where('folder', '==', 'inbox')
+      .where('read', '==', false)
+      .get();
+    document.getElementById('statUnread').textContent = unread.size;
+
+    // Active chats
+    const chats = await db.collection('chats')
+      .where('participants', 'array-contains', currentUser.uid)
+      .get();
+    document.getElementById('statChats').textContent = chats.size;
+
+    // Contacts (users count)
+    const users = await db.collection('users').get();
+    document.getElementById('statContacts').textContent = Math.max(0, users.size - 1);
+  } catch (err) {
+    console.error('Stats error:', err);
+  }
+}
+
+// ============================================================
+// RECENT ACTIVITY
+// ============================================================
+async function loadRecentActivity() {
+  if (!currentUser) return;
+  const container = document.getElementById('recentActivity');
+  try {
+    const activities = [];
+
+    // Recent emails
+    const emails = await db.collection('emails')
+      .where('receiver', '==', currentUser.uid)
+      .where('folder', '==', 'inbox')
+      .orderBy('timestamp', 'desc')
+      .limit(5)
+      .get();
+    emails.forEach(doc => {
+      const d = doc.data();
+      activities.push({
+        type: 'email',
+        title: d.subject || '(No subject)',
+        subtitle: `From: ${d.senderName || d.senderEmail || 'Unknown'}`,
+        time: d.timestamp?.toDate() || new Date(),
+        link: 'mail.html'
+      });
+    });
+
+    // Recent messages from chats user is in
+    const chats = await db.collection('chats')
+      .where('participants', 'array-contains', currentUser.uid)
+      .orderBy('lastMessageTime', 'desc')
+      .limit(5)
+      .get();
+    chats.forEach(doc => {
+      const d = doc.data();
+      activities.push({
+        type: 'chat',
+        title: d.type === 'group' ? (d.name || 'Group Chat') : (d.lastMessageSender || 'Chat'),
+        subtitle: d.lastMessage || 'No messages yet',
+        time: d.lastMessageTime?.toDate() || new Date(),
+        link: 'chat.html'
+      });
+    });
+
+    // Sort by time
+    activities.sort((a, b) => b.time - a.time);
+
+    if (activities.length === 0) {
+      container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)"><p>No recent activity. Start by sending an email or message!</p></div>';
+      return;
+    }
+
+    container.innerHTML = activities.slice(0, 8).map(a => `
+      <div class="recent-item" onclick="window.location.href='${a.link}'">
+        <div class="recent-icon ${a.type === 'email' ? 'email-type' : 'chat-type'}">${a.type === 'email' ? '📧' : '💬'}</div>
+        <div class="recent-content">
+          <h4>${escapeHtml(a.title)}</h4>
+          <p>${escapeHtml(a.subtitle)}</p>
+        </div>
+        <span class="recent-time">${formatTimeAgo(a.time)}</span>
+      </div>
+    `).join('');
+  } catch (err) {
+    console.error('Activity error:', err);
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted)">Could not load activity</div>';
+  }
+}
+
+// ============================================================
+// DROPDOWN / SETTINGS / ADMIN
+// ============================================================
+function toggleDropdown() {
+  document.getElementById('userDropdown').classList.toggle('show');
+}
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.user-menu') && !e.target.closest('.dropdown')) {
+    document.getElementById('userDropdown').classList.remove('show');
+  }
+});
+
+function openSettings() {
+  document.getElementById('settingsPanel').classList.add('show');
+  document.getElementById('userDropdown').classList.remove('show');
+}
+function closeSettings() { document.getElementById('settingsPanel').classList.remove('show'); }
+
+function openAdmin() {
+  document.getElementById('adminPanel').classList.add('show');
+  document.getElementById('userDropdown').classList.remove('show');
+  loadAdminUsers();
+}
+function closeAdmin() { document.getElementById('adminPanel').classList.remove('show'); }
+
+function toggleNotif(type) {
+  const toggleEl = document.getElementById(type + (type === 'encrypt' ? 'Toggle' : 'NotifToggle') || type + 'Toggle');
+  const map = { email: 'emailNotifToggle', chat: 'chatNotifToggle', sound: 'soundToggle', encrypt: 'encryptToggle' };
+  const el = document.getElementById(map[type]);
+  if (el) {
+    el.classList.toggle('active');
+    userSettings[type] = el.classList.contains('active');
+  }
+}
+
+// ============================================================
+// PROFILE
+// ============================================================
+async function saveProfile() {
+  if (!currentUser) return;
+  const displayName = document.getElementById('settingsDisplayName').value.trim();
+  const statusMessage = document.getElementById('settingsStatus').value.trim();
+  if (!displayName) { showToast('Display name is required', 'error'); return; }
+  try {
+    await db.collection('users').doc(currentUser.uid).update({ displayName, statusMessage });
+    await currentUser.updateProfile({ displayName });
+    userData.displayName = displayName;
+    userData.statusMessage = statusMessage;
+    applyUserData();
+    showToast('Profile saved!', 'success');
+  } catch (err) {
+    showToast('Error saving profile: ' + err.message, 'error');
+  }
+}
+
+async function uploadAvatar(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { showToast('File too large (max 5MB)', 'error'); return; }
+  if (!file.type.startsWith('image/')) { showToast('Only images allowed', 'error'); return; }
+  try {
+    showToast('Uploading...', 'info');
+    const ref = storage.ref(`avatars/${currentUser.uid}/${Date.now()}_${file.name}`);
+    await ref.put(file);
+    const url = await ref.getDownloadURL();
+    await db.collection('users').doc(currentUser.uid).update({ avatarUrl: url });
+    await currentUser.updateProfile({ photoURL: url });
+    userData.avatarUrl = url;
+    applyUserData();
+    showToast('Avatar updated!', 'success');
+  } catch (err) {
+    showToast('Upload failed: ' + err.message, 'error');
+  }
+}
+
+// ============================================================
+// ADMIN
+// ============================================================
+async function loadAdminUsers() {
+  const list = document.getElementById('adminUserList');
+  list.innerHTML = '<div style="text-align:center;padding:20px"><div class="loading-spinner"></div></div>';
+  try {
+    const snap = await db.collection('users').orderBy('createdAt', 'desc').get();
+    if (snap.empty) { list.innerHTML = '<p style="color:var(--text-muted);text-align:center">No users found</p>'; return; }
+    list.innerHTML = '';
+    snap.forEach(doc => {
+      const u = doc.data();
+      const el = document.createElement('div');
+      el.className = 'user-item';
+      el.innerHTML = `
+        <div class="user-item-left">
+          <div class="user-item-avatar" style="${u.banned ? 'background:var(--danger)' : ''}">${(u.displayName || u.username || '?')[0].toUpperCase()}</div>
+          <div class="user-item-info">
+            <span>${escapeHtml(u.displayName || u.username)} ${u.role === 'admin' ? '👑' : ''} ${u.banned ? '🚫' : ''}</span>
+            <small>${escapeHtml(u.email)} · ${u.status || 'offline'}</small>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px">
+          ${doc.id !== currentUser.uid ? (u.banned ? 
+            `<button class="btn-sm btn-success-sm" onclick="toggleBan('${doc.id}',false)">Unban</button>` :
+            `<button class="btn-sm btn-danger" onclick="toggleBan('${doc.id}',true)">Ban</button>`
+          ) : '<span style="font-size:12px;color:var(--text-muted)">You</span>'}
+        </div>
+      `;
+      list.appendChild(el);
+    });
+  } catch (err) {
+    list.innerHTML = `<p style="color:var(--danger);text-align:center">${err.message}</p>`;
+  }
+}
+
+async function toggleBan(userId, ban) {
+  if (!confirm(ban ? 'Ban this user?' : 'Unban this user?')) return;
+  try {
+    await db.collection('users').doc(userId).update({ banned: ban });
+    await db.collection('adminLogs').add({
+      action: ban ? 'ban_user' : 'unban_user',
+      performedBy: currentUser.uid,
+      targetUser: userId,
+      details: `User ${ban ? 'banned' : 'unbanned'}`,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showToast(`User ${ban ? 'banned' : 'unbanned'}`, 'success');
+    loadAdminUsers();
+  } catch (err) {
+    showToast('Error: ' + err.message, 'error');
+  }
+}
+
+function switchAdminTab(tab, btn) {
+  document.querySelectorAll('.admin-tabs button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('adminUsersTab').style.display = tab === 'users' ? 'block' : 'none';
+  document.getElementById('adminActivityTab').style.display = tab === 'activity' ? 'block' : 'none';
+  document.getElementById('adminReportsTab').style.display = tab === 'reports' ? 'block' : 'none';
+  if (tab === 'activity') loadAdminActivity();
+  if (tab === 'reports') loadAdminReports();
+}
+
+async function loadAdminActivity() {
+  const el = document.getElementById('adminActivityList');
+  try {
+    const snap = await db.collection('adminLogs').orderBy('timestamp', 'desc').limit(20).get();
+    if (snap.empty) { el.innerHTML = 'No activity logs'; return; }
+    el.innerHTML = '<div style="display:flex;flex-direction:column;gap:8px">' +
+      snap.docs.map(d => {
+        const l = d.data();
+        return `<div style="padding:10px;background:var(--bg-secondary);border-radius:var(--radius-sm);font-size:13px">
+          <strong>${l.action}</strong> — ${l.details || ''}<br>
+          <small style="color:var(--text-muted)">${l.timestamp?.toDate()?.toLocaleString() || ''}</small>
+        </div>`;
+      }).join('') + '</div>';
+  } catch (err) { el.textContent = err.message; }
+}
+
+async function loadAdminReports() {
+  const el = document.getElementById('adminReportsList');
+  try {
+    const snap = await db.collection('spamReports').orderBy('timestamp', 'desc').limit(20).get();
+    if (snap.empty) { el.innerHTML = 'No reports'; return; }
+    el.innerHTML = '<div style="display:flex;flex-direction:column;gap:8px">' +
+      snap.docs.map(d => {
+        const r = d.data();
+        return `<div style="padding:10px;background:var(--bg-secondary);border-radius:var(--radius-sm);font-size:13px">
+          <strong>${r.type}</strong> report by ${r.reportedBy}<br>
+          <small>${r.reason || ''}</small><br>
+          <small style="color:var(--text-muted)">${r.timestamp?.toDate()?.toLocaleString() || ''}</small>
+        </div>`;
+      }).join('') + '</div>';
+  } catch (err) { el.textContent = err.message; }
+}
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function escapeHtml(str) {
+  if (!str) return '';
+  const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+  return str.replace(/[&<>"']/g, m => map[m]);
+}
+
+function formatTimeAgo(date) {
+  if (!date) return '';
+  const now = new Date();
+  const diff = Math.floor((now - date) / 1000);
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+  if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+  return date.toLocaleDateString();
+}
+
+function showToast(message, type = 'info') {
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+  toast.innerHTML = `${icons[type] || 'ℹ️'} ${escapeHtml(message)}`;
+  container.appendChild(toast);
+  setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateX(100px)'; setTimeout(() => toast.remove(), 300); }, 4000);
+}
+
+// Presence disconnect
+window.addEventListener('beforeunload', () => {
+  if (currentUser) {
+    navigator.sendBeacon && db.collection('presence').doc(currentUser.uid).set({ online: false, lastSeen: firebase.firestore.FieldValue.serverTimestamp() });
+  }
+});
+
+// Init theme
+applyTheme(localStorage.getItem('darkcomm-theme') || 'dark');
+</script>
+</body>
+</html>
